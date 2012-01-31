@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 # /etc/init.d/minecraft
-# version 0.3.6 2011-10-17 (YYYY-MM-DD)
+# version 0.5 2012-01-31 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides:   minecraft
@@ -11,207 +11,196 @@
 # Default-Start:  2 3 4 5
 # Default-Stop:   0 1 6
 # Short-Description:    Minecraft server
-# Description:    Starts the minecraft server
+# Description:    Init script for bukkit server.
 ### END INIT INFO
 
-#Settings
-SERVICE='minecraft_server.jar'
-OPTIONS='nogui'
-USERNAME='minecraft'
-WORLD='world'
-MCPATH='/home/minecraft/minecraft'
-BACKUPPATH='/media/remote.share/minecraft.backup'
-CPU_COUNT=1
-INVOCATION="java -Xmx1024M -Xms1024M -XX:+UseConcMarkSweepGC -XX:+CMSIncrementalPacing -XX:ParallelGCThreads=$CPU_COUNT -XX:+AggressiveOpts -jar $SERVICE $OPTIONS"
+# Based on http://www.minecraftwiki.net/wiki/Server_startup_script
+
+#############################
+######### SETTINGS ##########
+#############################
+
+# Name of server.jar file
+SERVICE="craftbukkit-1.1.0-R3.jar"
+
+# Name to use for the screen instance
+SCREEN="minecraft110"
+
+# User that should run the server
+USERNAME="minecraft"
+
+# Path to minecraft directory
+MCBASEPATH="/home/${USERNAME}"
+
+# Initial memory usage
+INITMEM="512M"
+
+# Maximum amount of memory to use
+MAXMEM="1024M"
+
+
+
+
+
+
+
+
+
+#############################
+####### DO NOT EDIT #########
+#############################
+
+INVOCATION="java -server -Xmx$MAXMEM -Xms$INITMEM -jar $SERVICE $OPTIONS"
+
+# Where the whole minecraft directory is copied when whole-backup is executed
+MCPATH="${MCPATH}/server"
+
+# Where the whole minecraft directory is copied when whole-backup is executed
+BACKUP="${MCPATH}/server.bak"
+
+
+screen_running(){
+	if [ `screen -ls $SCREEN_NAME | grep $SCREEN_NAME` == "" ]; then
+		return false;
+	fi
+	return true;
+}
 
 ME=`whoami`
 as_user() {
-  if [ $ME == $USERNAME ] ; then
-    bash -c "$1"
-  else
-    su - $USERNAME -c "$1"
-  fi
+	if [ $ME == $USERNAME ]; then
+		sh -c "$1"
+	else
+		su - $USERNAME -c "$1"
+	fi
 }
 
 mc_start() {
-  if  pgrep -u $USERNAME -f $SERVICE > /dev/null
-  then
-    echo "$SERVICE is already running!"
-  else
-    echo "Starting $SERVICE..."
-    cd $MCPATH
-    as_user "cd $MCPATH && screen -dmS minecraft $INVOCATION"
-    sleep 7
-    if pgrep -u $USERNAME -f $SERVICE > /dev/null
-    then
-      echo "$SERVICE is now running."
-    else
-      echo "Error! Could not start $SERVICE!"
-    fi
-  fi
+	if [ screen_running ]; then
+		echo "Tried to start but $SERVICE was already running!"
+	else
+		echo "$SERVICE was not running... starting."
+		cd $MCPATH
+		as_user "cd $MCPATH && screen -dmS $SCREEN $INVOCATION"
+		sleep 3
+		if screen_running
+		then
+			echo "$SERVICE is now running."
+		else
+			echo "Could not start $SERVICE."
+		fi
+	fi
 }
 
 mc_saveoff() {
-  if pgrep -u $USERNAME -f $SERVICE > /dev/null
-  then
-    echo "$SERVICE is running... suspending saves"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"say SERVER BACKUP STARTING. Server going readonly...\"\015'"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"save-off\"\015'"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"save-all\"\015'"
-    sync
-    sleep 10
-  else
-    echo "$SERVICE is not running. Not suspending saves."
-  fi
+	if [ screen_running ]; then
+		echo "$SERVICE is running... suspending saves"
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"save-off\"\015'"
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"save-all\"\015'"
+#		sync
+		sleep 10
+	else
+		echo "$SERVICE was not running. Not suspending saves."
+	fi
 }
 
 mc_saveon() {
-  if pgrep -u $USERNAME -f $SERVICE > /dev/null
-  then
-    echo "$SERVICE is running... re-enabling saves"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"save-on\"\015'"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"say SERVER BACKUP ENDED. Server going read-write...\"\015'"
-  else
-    echo "$SERVICE is not running. Not resuming saves."
-  fi
+	if [ screen_running ]; then
+		echo "$SERVICE is running... re-enabling saves"
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"save-on\"\015'"
+	else
+		echo "$SERVICE was not running. Not resuming saves."
+	fi
 }
 
 mc_stop() {
-  if pgrep -u $USERNAME -f $SERVICE > /dev/null
-  then
-    echo "Stopping $SERVICE"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"say SERVER SHUTTING DOWN IN 10 SECONDS. Saving map...\"\015'"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"save-all\"\015'"
-    sleep 10
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"stop\"\015'"
-    sleep 7
-  else
-    echo "$SERVICE was not running."
-  fi
-  if pgrep -u $USERNAME -f $SERVICE > /dev/null
-  then
-    echo "Error! $SERVICE could not be stopped."
-  else
-    echo "$SERVICE is stopped."
-  fi
-}
-
-mc_update() {
-  if pgrep -u $USERNAME -f $SERVICE > /dev/null
-  then
-    echo "$SERVICE is running! Will not start update."
-  else
-    MC_SERVER_URL=http://s3.amazonaws.com/MinecraftDownload/launcher/minecraft_server.jar?v=`date | sed "s/[^a-zA-Z0-9]/_/g"`
-    as_user "cd $MCPATH && wget -q -O $MCPATH/minecraft_server.jar.update $MC_SERVER_URL"
-    if [ -f $MCPATH/minecraft_server.jar.update ]
-    then
-      if `diff $MCPATH/$SERVICE $MCPATH/minecraft_server.jar.update >/dev/null`
-      then 
-        echo "You are already running the latest version of $SERVICE."
-      else
-        as_user "mv $MCPATH/minecraft_server.jar.update $MCPATH/$SERVICE"
-        echo "Minecraft successfully updated."
-      fi
-    else
-      echo "Minecraft update could not be downloaded."
-    fi
-  fi
+	if [ screen_running ]; then
+		echo "$SERVICE is running... stopping."
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"save-all\"\015'"
+		sleep 5
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"stop\"\015'"
+		sleep 10
+	else
+		echo "$SERVICE was not running."
+	fi
+	if [ screen_running ]; then
+		echo "$SERVICE is still running."
+		echo "$SERVICE will now receive a second stop command."
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"stop\"\015'"
+		sleep 10
+	fi
+	if [ screen_running ]; then
+		echo "$SERVICE could not be shut down... still running."
+	else
+		echo "$SERVICE is shut down."
+	fi
 }
 
 mc_backup() {
-   echo "Backing up minecraft world..."
-   if [ -d $BACKUPPATH/${WORLD}_`date "+%Y.%m.%d_%H.%M"` ]
-   then
-     for i in 1 2 3 4 5 6
-     do
-       if [ -d $BACKUPPATH/${WORLD}_`date "+%Y.%m.%d_%H.%M"`-$i ]
-       then
-         continue
-       else
-         as_user "cd $MCPATH && cp -r $WORLD $BACKUPPATH/${WORLD}_`date "+%Y.%m.%d_%H.%M"`-$i"
-         break
-       fi
-     done
-   else
-     as_user "cd $MCPATH && cp -r $WORLD $BACKUPPATH/${WORLD}_`date "+%Y.%m.%d_%H.%M"`"
-     echo "Backed up world"
-   fi
-   echo "Backing up $SERVICE"
-   if [ -f "$BACKUPPATH/minecraft_server_`date "+%Y.%m.%d_%H.%M"`.jar" ]
-   then
-     for i in 1 2 3 4 5 6
-     do
-       if [ -f "$BACKUPPATH/minecraft_server_`date "+%Y.%m.%d_%H.%M"`-$i.jar" ]
-       then
-         continue
-       else
-         as_user "cd $MCPATH && cp $SERVICE \"$BACKUPPATH/minecraft_server_`date "+%Y.%m.%d_%H.%M"`-$i.jar\""
-         break
-       fi
-     done
-   else
-     as_user "cd $MCPATH && cp $SERVICE \"$BACKUPPATH/minecraft_server_`date "+%Y.%m.%d_%H.%M"`.jar\""
-   fi
-   echo "Backup complete"
+# Switching this to rsync.
+#	as_user "mkdir -p $WHOLEBACKUP"
+#	path=`datepath $WHOLEBACKUP/mine_`
+#	as_user "cp -r $MCPATH $path"
 }
 
-mc_command() {
-  command="$1";
-  if pgrep -u $USERNAME -f $SERVICE > /dev/null
-  then
-    pre_log_len=`wc -l "$MCPATH/server.log" | awk '{print $1}'`
-    echo "$SERVICE is running... executing command"
-    as_user "screen -p 0 -S minecraft -X eval 'stuff \"$command\"\015'"
-    sleep .1 # assumes that the command will run and print to the log file in less than .1 seconds
-    # print output
-    tail -n $[`wc -l "$MCPATH/server.log" | awk '{print $1}'`-$pre_log_len] "$MCPATH/server.log"
-  fi
-}
-
-#Start-Stop here
 case "$1" in
-  start)
-    mc_start
-    ;;
-  stop)
-    mc_stop
-    ;;
-  restart)
-    mc_stop
-    mc_start
-    ;;
-  update)
-    mc_stop
-    mc_backup
-    mc_update
-    mc_start
-    ;;
-  backup)
-    mc_saveoff
-    mc_backup
-    mc_saveon
-    ;;
-  status)
-    if pgrep -u $USERNAME -f $SERVICE > /dev/null
-    then
-      echo "$SERVICE is running."
-    else
-      echo "$SERVICE is not running."
-    fi
-    ;;
-  command)
-    if [ $# -gt 1 ]; then
-      shift
-      mc_command "$*"
-    else
-      echo "Must specify server command (try 'help'?)"
-    fi
-    ;;
-
-  *)
-  echo "Usage: /etc/init.d/minecraft {start|stop|update|backup|status|restart|command \"server command\"}"
-  exit 1
-  ;;
+	start)
+		# Starts the server
+		mc_start
+		;;
+	stop)
+		# Stops the server
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"say SERVER SHUTTING DOWN!\"\015'"
+		mc_stop
+		;;
+	restart)
+		# Restarts the server
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"say SERVER REBOOT IN 5 SECONDS.\"\015'"
+		mc_stop
+		echo "sleeping for 5 seconds. Before starting server again."
+		sleep 5
+		mc_start
+		;;
+	backup)
+		# Backups world
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"say Backing up world.\"\015'"
+		mc_saveoff
+		mc_backup
+		mc_saveon
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"say Backup complete.\"\015'"
+		;;
+	connected)
+		# Lists connected users
+		as_user "screen -p 0 -S $SCREEN -X eval 'stuff list\015'"
+		sleep 3s
+		tac $MCPATH/server.log | grep -m 1 "Connected"
+		;;
+	status)
+		# Shows server status
+		if [ screen_running ]; then
+			echo "$SERVICE is running."
+		else
+			echo "$SERVICE is not running."
+		fi
+		;;
+	version)
+		echo Craftbukkit version `awk '/Craftbukkit/ {sub(/\)/, ""); print $12}' $MCPATH/server.log`
+		;;
+	help)
+		echo "Usage: /etc/init.d/minecraft command"
+		echo ""
+		echo "start - Starts the server"
+		echo "stop - stops the server"
+		echo "restart - restarts the server"
+		echo "backup - backups the server up to $BACKUP"
+		echo "connected - lists connected users"
+		echo "status - Shows server status"
+		echo "version - returs Bukkit version"
+		;;
+	*)
+		echo "No such command see /etc/init.d/minecraft help"
+		exit 1
+		;;
 esac
 
 exit 0
