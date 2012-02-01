@@ -52,10 +52,10 @@ MAXMEM="1024M"
 
 INVOCATION="java -server -Xmx$MAXMEM -Xms$INITMEM -jar $SERVICE $OPTIONS"
 
-# Where the whole minecraft directory is copied when whole-backup is executed
+# Where the minecraft server directory is located
 MCPATH="${MCPATH}/server"
 
-# Where the whole minecraft directory is copied when whole-backup is executed
+# Where the whole minecraft directory is copied when backup is ran.
 BACKUP="${MCPATH}/server.bak"
 
 
@@ -73,6 +73,10 @@ as_user() {
 	else
 		su - $USERNAME -c "$1"
 	fi
+}
+
+mc_command(){
+	as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"$1\"\015'"
 }
 
 mc_start() {
@@ -95,10 +99,8 @@ mc_start() {
 mc_saveoff() {
 	if [ screen_running ]; then
 		echo "$SERVICE is running... suspending saves"
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"save-off\"\015'"
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"save-all\"\015'"
-#		sync
-		sleep 10
+		mc_command "save-off"
+		mc_command "save-all"
 	else
 		echo "$SERVICE was not running. Not suspending saves."
 	fi
@@ -107,7 +109,7 @@ mc_saveoff() {
 mc_saveon() {
 	if [ screen_running ]; then
 		echo "$SERVICE is running... re-enabling saves"
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"save-on\"\015'"
+		mc_command "save-on"
 	else
 		echo "$SERVICE was not running. Not resuming saves."
 	fi
@@ -116,9 +118,9 @@ mc_saveon() {
 mc_stop() {
 	if [ screen_running ]; then
 		echo "$SERVICE is running... stopping."
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"save-all\"\015'"
+		mc_command "save-all"
 		sleep 5
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"stop\"\015'"
+		mc_command "stop"
 		sleep 10
 	else
 		echo "$SERVICE was not running."
@@ -126,7 +128,7 @@ mc_stop() {
 	if [ screen_running ]; then
 		echo "$SERVICE is still running."
 		echo "$SERVICE will now receive a second stop command."
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"stop\"\015'"
+		mc_command "stop"
 		sleep 10
 	fi
 	if [ screen_running ]; then
@@ -150,12 +152,12 @@ case "$1" in
 		;;
 	stop)
 		# Stops the server
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"say SERVER SHUTTING DOWN!\"\015'"
+		mc_command "say SERVER SHUTTING DOWN IN 5 SECONDS!"
 		mc_stop
 		;;
 	restart)
 		# Restarts the server
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"say SERVER REBOOT IN 5 SECONDS.\"\015'"
+		mc_command "say SERVER REBOOT IN 5 SECONDS."
 		mc_stop
 		echo "sleeping for 5 seconds. Before starting server again."
 		sleep 5
@@ -163,17 +165,11 @@ case "$1" in
 		;;
 	backup)
 		# Backups world
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"say Backing up world.\"\015'"
+		mc_command "say Backing up world."
 		mc_saveoff
 		mc_backup
 		mc_saveon
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff \"say Backup complete.\"\015'"
-		;;
-	connected)
-		# Lists connected users
-		as_user "screen -p 0 -S $SCREEN -X eval 'stuff list\015'"
-		sleep 3s
-		tac $MCPATH/server.log | grep -m 1 "Connected"
+		mc_command "say Backup complete."
 		;;
 	status)
 		# Shows server status
@@ -182,6 +178,19 @@ case "$1" in
 		else
 			echo "$SERVICE is not running."
 		fi
+		;;
+	view)
+		if [ screen_running ]; then
+			echo "A screen was detected for $SCREEN_NAME."
+			echo "Connecting to the screen session..."
+			echo "Hold ctrl then press A, D to exit the screen session."
+			sleep 3
+			screen -r $SCREEN_NAME
+		else
+			echo "No screen found for $SCREEN_NAME."
+			echo "Please manually fix this if you believes this to be in error."
+		fi
+
 		;;
 	version)
 		echo Craftbukkit version `awk '/Craftbukkit/ {sub(/\)/, ""); print $12}' $MCPATH/server.log`
@@ -193,9 +202,9 @@ case "$1" in
 		echo "stop - stops the server"
 		echo "restart - restarts the server"
 		echo "backup - backups the server up to $BACKUP"
-		echo "connected - lists connected users"
 		echo "status - Shows server status"
-		echo "version - returs Bukkit version"
+		echo "view - connects to the console"
+		echo "version - returns Bukkit version"
 		;;
 	*)
 		echo "No such command see /etc/init.d/minecraft help"
