@@ -139,10 +139,8 @@ mc_stop() {
 }
 
 mc_backup() {
-# Switching this to rsync.
-#	as_user "mkdir -p $WHOLEBACKUP"
-#	path=`datepath $WHOLEBACKUP/mine_`
-#	as_user "cp -r $MCPATH $path"
+	#rsync is fast. I suggest you have your own backup solution operate off the incremental folder.
+	as_user "rsync -qvaz --delete --exclude=plugins/dynmap/web/tiles/ $MCPATH/ $BACKUP/incremental"
 }
 
 case "$1" in
