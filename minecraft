@@ -185,7 +185,7 @@ case "$1" in
 			echo "Connecting to the screen session..."
 			echo "Hold ctrl then press A, D to exit the screen session."
 			sleep 3
-			screen -r $SCREEN_NAME
+			as_user "screen -r $SCREEN_NAME"
 		else
 			echo "No screen found for $SCREEN_NAME."
 			echo "Please manually fix this if you believes this to be in error."
