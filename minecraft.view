@@ -1,0 +1,16 @@
+#!/bin/bash
+
+tty=`who -m | awk '{print $2;}'`
+
+$SCREEN_NAME="minecraft"
+
+echo "Your tty is $tty"
+echo "Changing permissions on it."
+chmod o+rw /dev/$tty
+echo "Opening MC screen."
+echo "To close the screen hold CTRL, then press A, then press D, and release CTRL."
+sudo su - minecraft -c "screen -r $SCREEN_NAME"
+
+echo "Reverting permissions changes to your tty."
+chmod o-rw /dev/$tty
+
