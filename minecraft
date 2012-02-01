@@ -78,11 +78,13 @@ as_user() {
 }
 
 mc_command(){
-	as_user "screen -p 0 -S $SCREEN_NAME -X eval 'stuff \"$1\"\015'"
+	if ( screen_running ); then
+		as_user "screen -p 0 -S $SCREEN_NAME -X eval 'stuff \"$1\"\015'"
+	fi
 }
 
 mc_start() {
-	if ( screen_running ) ; then
+	if ( screen_running ); then
 		echo "Tried to start but $SERVICE was already running!"
 	else
 		echo "$SERVICE was not running... starting."
