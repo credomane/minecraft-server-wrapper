@@ -38,6 +38,18 @@ INITMEM="512M"
 # Maximum amount of memory to use
 MAXMEM="1024M"
 
+# Location and name of the server.log
+# Default is "server.log"
+LOG_PATTERN="logs/server.log"
+
+# Limit the size of LOG_PATTERN to X Megabytes.
+# Default is "0" (0 = Unlimited)
+LOG_LIMIT=5
+
+# Number of logs to keep.
+# Default is "1"
+LOG_COUNT=5
+
 # Extra options to pass to bukkit
 OPTIONS=""
 
@@ -51,7 +63,21 @@ OPTIONS=""
 ####### DO NOT EDIT #########
 #############################
 
-INVOCATION="java -server -Xmx$MAXMEM -Xms$INITMEM -jar $SERVICE $OPTIONS"
+LOG_LIMIT=$[LOG_LIMIT*1024*1024]
+
+if [ "$LOG_COUNT" != "" ]; then
+	ARG_LOG_COUNT="--log-count $LOG_COUNT"
+fi
+
+if [ "$LOG_LIMIT" != "" ]; then
+	ARG_LOG_LIMIT="--log-limit $LOG_LIMIT"
+fi
+
+if [ "$LOG_PATTERN" != "" ]; then
+	ARG_LOG_PATTERN="--log-pattern $LOG_PATTERN"
+fi
+
+INVOCATION="java -server -Xmx$MAXMEM -Xms$INITMEM -jar $SERVICE $ARG_LOG_COUNT $ARG_LOG_LIMIT $ARG_LOG_PATTERN $OPTIONS"
 
 # Where the minecraft server directory is located
 MCPATH="${MCBASEPATH}/server"
@@ -89,6 +115,9 @@ mc_start() {
 	else
 		echo "$SERVICE was not running... starting."
 		cd $MCPATH
+		LOG_DIR="$MCPATH/$LOG_PATTERN"
+		LOG_DIR=${LOG_DIR%/*}
+		as_user "mkdir -p $LOG_DIR"
 		as_user "cd $MCPATH && screen -dmS $SCREEN_NAME $INVOCATION"
 		sleep 3
 		if ( screen_running ); then
@@ -184,8 +213,8 @@ case "$1" in
 			echo "$SERVICE is not running."
 		fi
 		;;
-	view)
-		echo "$USERNAME $SCREEN_NAME"
+	mcinfo)
+		echo "$USERNAME $SCREEN_NAME $MCPATH/$LOG_PATTERN"
 		;;
 	version)
 		echo Craftbukkit version `awk '/CraftBukkit/ {sub(/\)/, ""); print $12}' $MCPATH/server.log`
@@ -198,7 +227,7 @@ case "$1" in
 		echo "restart - restarts the server"
 		echo "backup - backups the server up to $BACKUP"
 		echo "status - Shows server status"
-		echo "view - connects to the console"
+		echo "mcinfo - Info useful to scripts."
 		echo "version - returns Bukkit version"
 		;;
 	*)
