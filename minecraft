@@ -185,24 +185,10 @@ case "$1" in
 		fi
 		;;
 	view)
-		if ( screen_running ); then
-			echo "A screen was detected for $SCREEN_NAME."
-			echo "Connecting to the screen session..."
-			echo "Hold ctrl then press A, D to exit the screen session."
-			echo "This currently doesn't work."
-#			USER=`who -m | awk '{print $2}'`
-#			chmod o+rw /dev/$USER
-#			chmod o-rw /dev/$USER
-			sleep 2
-			as_user "screen -p 0 -r $SCREEN_NAME"
-		else
-			echo "No screen found for $SCREEN_NAME."
-			echo "Please manually fix this if you believes this to be in error."
-		fi
-
+		echo "$USERNAME $SCREEN_NAME"
 		;;
 	version)
-		echo Craftbukkit version `awk '/Craftbukkit/ {sub(/\)/, ""); print $12}' $MCPATH/server.log`
+		echo Craftbukkit version `awk '/CraftBukkit/ {sub(/\)/, ""); print $12}' $MCPATH/server.log`
 		;;
 	help)
 		echo "Usage: /etc/init.d/minecraft command"

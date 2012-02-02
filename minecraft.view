@@ -1,16 +1,18 @@
 #!/bin/bash
 
-tty=`who -m | awk '{print $2;}'`
+TTY=`who -m | awk '{print $2;}'`
 
-$SCREEN_NAME="minecraft"
+SERVICE="/etc/init.d/minecraft"
+USERNAME=`$SERVICE view | awk '{print $1;}'`
+SCREEN_NAME=`$SERVICE view | awk '{print $2;}'`
 
-echo "Your tty is $tty"
+echo "Your tty is $TTY"
 echo "Changing permissions on it."
-chmod o+rw /dev/$tty
+chmod o+rw /dev/$TTY
 echo "Opening MC screen."
 echo "To close the screen hold CTRL, then press A, then press D, and release CTRL."
-sudo su - minecraft -c "screen -r $SCREEN_NAME"
+sudo su - $USERNAME -c "screen -r $SCREEN_NAME"
 
 echo "Reverting permissions changes to your tty."
-chmod o-rw /dev/$tty
+chmod o-rw /dev/$TTY
 
