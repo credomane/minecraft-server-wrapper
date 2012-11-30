@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 0.5 2012-01-31 (YYYY-MM-DD)
+# version 0.7 2012-06-06 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides:   minecraft
@@ -20,11 +20,14 @@
 ######### SETTINGS ##########
 #############################
 
+#Magic kill switch to prevent startup.
+CANSTART=true
+
 # Name of server.jar file
-SERVICE="craftbukkit-1.1-R3.jar"
+SERVICE="craftbukkit.jar"
 
 # Name to use for the screen instance
-SCREEN_NAME="minecraft110"
+SCREEN_NAME="minecraft"
 
 # User that should run the server
 USERNAME="minecraft"
@@ -75,6 +78,8 @@ fi
 
 if [ "$LOG_PATTERN" != "" ]; then
 	ARG_LOG_PATTERN="--log-pattern $LOG_PATTERN"
+else
+	LOG_PATTERN="server.log"
 fi
 
 INVOCATION="java -server -Xmx$MAXMEM -Xms$INITMEM -jar $SERVICE $ARG_LOG_COUNT $ARG_LOG_LIMIT $ARG_LOG_PATTERN $OPTIONS"
@@ -112,6 +117,8 @@ mc_command(){
 mc_start() {
 	if ( screen_running ); then
 		echo "Tried to start but $SERVICE was already running!"
+	elif [ "$CANSTART" != true ]; then
+		echo "CANSTART is false... NOT starting."
 	else
 		echo "$SERVICE was not running... starting."
 		cd $MCPATH
@@ -217,7 +224,7 @@ case "$1" in
 		echo "$USERNAME $SCREEN_NAME $MCPATH/$LOG_PATTERN"
 		;;
 	version)
-		echo Craftbukkit version `awk '/CraftBukkit/ {sub(/\)/, ""); print $12}' $MCPATH/server.log`
+		echo Craftbukkit version `awk '/CraftBukkit/ {sub(/\)/, ""); print $12}' $MCPATH/$LOG_PATTERN`
 		;;
 	help)
 		echo "Usage: /etc/init.d/minecraft command"

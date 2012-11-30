@@ -1,18 +1,41 @@
 #!/bin/bash
+# minecraft.view
+# version 0.7 2012-06-06 (YYYY-MM-DD)
+
 
 TTY=`who -m | awk '{print $2;}'`
 
 SERVICE="/etc/init.d/minecraft"
-USERNAME=`$SERVICE view | awk '{print $1;}'`
-SCREEN_NAME=`$SERVICE view | awk '{print $2;}'`
+USERNAME=`$SERVICE mcinfo | awk '{print $1;}'`
+SCREEN_NAME=`$SERVICE mcinfo | awk '{print $2;}'`
 
-echo "Your tty is $TTY"
-echo "Changing permissions on it."
-chmod o+rw /dev/$TTY
-echo "Opening MC screen."
-echo "To close the screen hold CTRL, then press A, then press D, and release CTRL."
-sudo su - $USERNAME -c "screen -r $SCREEN_NAME"
+openmc() {
+        if [ `whoami` == $USERNAME ] ; then
+		screen -r $SCREEN_NAME
+        else
+		sudo su - $USERNAME -c "screen -r $SCREEN_NAME"
+        fi
+}
 
-echo "Reverting permissions changes to your tty."
-chmod o-rw /dev/$TTY
+if [ "$USERNAME" == `whoami` ]; then
+	echo "Opening MC screen $SCREEN_NAME."
+	echo "To close the screen hold CTRL, then press A, then press D, and release CTRL."
+
+	sleep 2
+
+	openmc
+else
+	echo "Your tty is $TTY"
+	echo "Changing permissions on it."
+	chmod o+rw /dev/$TTY
+	echo "Opening MC screen $SCREEN_NAME."
+	echo "To close the screen hold CTRL, then press A, then press D, and release CTRL."
+
+	sleep 2
+
+	openmc
+
+	echo "Reverting permissions changes to your tty."
+	chmod o-rw /dev/$TTY
+fi
 
