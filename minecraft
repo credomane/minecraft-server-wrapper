@@ -1,6 +1,6 @@
 #!/bin/bash
 # /etc/init.d/minecraft
-# version 0.7 2012-06-06 (YYYY-MM-DD)
+# version 0.8 2015-08-28 (YYYY-MM-DD)
 
 ### BEGIN INIT INFO
 # Provides:   minecraft
@@ -11,7 +11,7 @@
 # Default-Start:  2 3 4 5
 # Default-Stop:   0 1 6
 # Short-Description:    Minecraft server
-# Description:    Init script for bukkit server.
+# Description:    Init script for minecraft/forge server.
 ### END INIT INFO
 
 # Based on http://www.minecraftwiki.net/wiki/Server_startup_script
@@ -24,7 +24,7 @@
 CANSTART=true
 
 # Name of server.jar file
-SERVICE="craftbukkit.jar"
+SERVICE="minecraft_server.jar"
 
 # Name to use for the screen instance
 SCREEN_NAME="minecraft"
@@ -41,6 +41,9 @@ INITMEM="512M"
 # Maximum amount of memory to use
 MAXMEM="1024M"
 
+# Extra options to pass to java
+JAVAOPTS=""
+
 # Location and name of the server.log
 # Default is "server.log"
 LOG_PATTERN="logs/server.log"
@@ -53,8 +56,8 @@ LOG_LIMIT=5
 # Default is "1"
 LOG_COUNT=5
 
-# Extra options to pass to bukkit
-OPTIONS=""
+# Extra options to pass to minecraft
+MCOPTIONS=""
 
 
 
@@ -82,7 +85,7 @@ else
 	LOG_PATTERN="server.log"
 fi
 
-INVOCATION="java -server -Xmx$MAXMEM -Xms$INITMEM -jar $SERVICE $ARG_LOG_COUNT $ARG_LOG_LIMIT $ARG_LOG_PATTERN $OPTIONS"
+INVOCATION="java -server -Xmx$MAXMEM -Xms$INITMEM $JAVAOPTS -jar $SERVICE $ARG_LOG_COUNT $ARG_LOG_LIMIT $ARG_LOG_PATTERN $MCOPTIONS"
 
 # Where the minecraft server directory is located
 MCPATH="${MCBASEPATH}/server"
